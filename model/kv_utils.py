@@ -73,7 +73,6 @@ class PyramidKVCluster():
         steps = (max_num - min_num) // self.num_hidden_layers
         max_capacity_prompt = max_num - self.layer_idx * steps
         
-        # print(f"PyramidKV max_capacity_prompt {max_capacity_prompt}")
         if q_len < self.max_capacity_prompt:
             return key_states, value_states
         elif q_len < (self.max_capacity_prompt - self.window_size) * 2:
@@ -227,8 +226,6 @@ class SnapKVCluster():
         # check if prefix phase
         assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
-        
-        print(f"SnapKV max_capacity_prompt {self.max_capacity_prompt}")
         
         if q_len < self.max_capacity_prompt:
             return key_states, value_states
@@ -457,7 +454,7 @@ class H2OKVCluster():
                     H2OKVCluster.jump_step = 0
                     H2OKVCluster.jump_layer = 0
                 
-                print(f"H2O decoding_window_size {decoding_window_size}")
+                
                 attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim)
                 attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
                 attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
@@ -664,7 +661,7 @@ class ALLKVCluster():
                 ALLKVCluster.jump_step += 1
                 return key_states, value_states
             else:
-                print(f"ALL decoding_window_size {decoding_window_size}")
+                # print(f"ALL decoding_window_size {decoding_window_size}")
                 ALLKVCluster.jump_step = 0
                 attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim)
                 # print(attn_weights.shape) # bsz, num_heads, q_len=1, k_len
