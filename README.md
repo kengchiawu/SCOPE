@@ -40,9 +40,7 @@ python3 run_longgenbench.py \
 
 ## Eval Acc in GSM8K+
 
-metrics.sh:
-
-```
+```bash
 results_dir=$1
 
 python3 eval_gen.py \
