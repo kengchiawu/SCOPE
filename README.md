@@ -2,7 +2,9 @@
 SCOPE: Optimizing KV Cache Compression in Long-context Generation
 
 > **Note:** This repo demonstrates the core principles of the SCOPE method and assist with double-blind paper review.
+>
 > **Three decoding strategies:** Slide, Adaptive, Discontinuous
+>
 > **Setting:** Slide(decoding_metric="fixed"), Adaptive(decoding_metric="linear"), Discontinuous(decoding_metric="jump")
 
 
