@@ -1,7 +1,7 @@
 # SCOPE
 SCOPE: Optimizing KV Cache Compression in Long-context Generation
 
-> **Note:** This repo demonstrates the core principles of the SCOPE method and assist with double-blind paper review.
+> **Note:** This repo demonstrates the core principles of the SCOPE method and we will make all the code publicly available upon the acceptance of the paper.
 >
 > **Three decoding strategies:** Slide, Adaptive, Discontinuous
 >
