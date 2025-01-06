@@ -87,6 +87,8 @@ def main(args):
             
             template = model2prompt[args.dataset]
             system_prompt = template.format(**example)
+            #print(list(example.keys()))
+            #raise RuntimeError("i need stop!")
             
             # mmlu
             if "task" in example:
