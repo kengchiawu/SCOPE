@@ -192,7 +192,7 @@ def main(args):
                 model.model.layers[i].self_attn.config.decoding_window_size = args.decoding_window_size
                 model.model.layers[i].self_attn.config.decoding_recent_size = args.decoding_recent_size
                 # model.model.layers[i].self_attn.config.delta = args.delta
-                model.model.layers[i].self_attn.config.delta = (output_max_len - model.model.layers[i].self_attn.config.decoding_recent_size) // (model.model.layers[i].self_attn.config.decoding_window_size - model.model.layers[i].self_attn.config.decoding_recent_size)
+                #model.model.layers[i].self_attn.config.delta = (output_max_len - model.model.layers[i].self_attn.config.decoding_recent_size) // (model.model.layers[i].self_attn.config.decoding_window_size - model.model.layers[i].self_attn.config.decoding_recent_size)
                 # print(f"layer {i} delta {model.model.layers[i].self_attn.config.delta}")
 
         context_length = batch_input_ids.shape[-1]
