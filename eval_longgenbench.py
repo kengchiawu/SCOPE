@@ -99,8 +99,8 @@ if __name__ == '__main__':
     
     dataset_list = [
         "gsm8k",
-        "mmlu",
-        "csqa",
+        #"mmlu",
+        #"csqa",
         ]
     
     results_list = [
