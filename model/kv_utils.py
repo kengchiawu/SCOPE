@@ -20,6 +20,54 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
+def local_heavy_hitter_mask(attn_weights, token_budget, chunk_size):
+    # attn_weights (BS, head, query, keys)
+
+    # expend attn_weights to be divisible by chunk_size
+    seq_length = attn_weights.shape[-1]
+    padding_length = chunk_size - ((seq_length - 1) % chunk_size + 1)
+    attn_weights = torch.cat(
+        [
+            attn_weights,
+            torch.ones(
+                (
+                    attn_weights.shape[0],
+                    attn_weights.shape[1],
+                    attn_weights.shape[2],
+                    padding_length,
+                ),
+                device=attn_weights.device,
+            )
+            * torch.tensor(torch.finfo(attn_weights.dtype).min),
+        ],
+        dim=-1,
+    )
+
+    # chunk attn_weights into chunk_size tokens
+    chunk_attn_weights = attn_weights.reshape(
+        attn_weights.shape[0],
+        attn_weights.shape[1],
+        attn_weights.shape[2],
+        attn_weights.shape[3] // chunk_size,
+        chunk_size,
+    ).amax(dim=-1)
+
+    _, topk = chunk_attn_weights.topk(
+        k=min(max(3,token_budget//chunk_size), chunk_attn_weights.size(-1)), dim=-1
+    )
+    # repeat topk chunk_size times and recover the original indexes (* chunk_size + arange(chunk_size))
+    topk = topk.unsqueeze(-1).repeat(
+        1, 1, 1, 1, chunk_size
+    ) * chunk_size + torch.arange(chunk_size, device=topk.device)
+    topk = topk.reshape(topk.shape[0], topk.shape[1], topk.shape[2], -1)
+    mask_bottom = torch.zeros_like(attn_weights, dtype=torch.bool, device=topk.device)
+    mask_bottom.scatter_(-1, topk, True)
+
+    # remove the padding
+    mask_bottom = mask_bottom[:, :, :, :seq_length]
+
+    return mask_bottom
+
 
 class PyramidKVCluster():
     def __init__(self, decoding_metric = 'None', num_hidden_layers = 32, decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool', beta = 20, num_layers = 80, layer_idx=None):
@@ -697,6 +745,205 @@ class ALLKVCluster():
         else:
             raise ValueError('Decoding metric not supported')
 
+class QuestKVCluster():
+    quest_prompt_length = 0
+    current_decoding_step = 0
+    jump_step = 0
+
+    def __init__(
+            self, 
+            max_capacity_prompt = 256,
+            page_select_strategy = 'amax',
+            decoding_metric = 'None', 
+            decoding_window_size = 1024, 
+            decoding_recent_size = 256, 
+            chunk_size = 16,
+            ):
+        self.max_capacity_prompt = max_capacity_prompt
+        self.page_select_strategy = page_select_strategy
+        self.decoding_metric = decoding_metric
+        self.decoding_window_size = decoding_window_size
+        self.decoding_recent_size = decoding_recent_size
+        #Quest config
+        self.chunk_size = chunk_size
+        assert self.decoding_window_size - self.decoding_recent_size > 0
+
+    def reset(
+            self, 
+            max_capacity_prompt = 256,
+            page_select_strategy = 'amax',
+            decoding_metric = 'None', 
+            decoding_window_size = 1024, 
+            decoding_recent_size = 256, 
+            chunk_size = 16,
+            ):
+        self.max_capacity_prompt = max_capacity_prompt
+        self.page_select_strategy = page_select_strategy
+        self.decoding_metric = decoding_metric
+        self.decoding_window_size = decoding_window_size
+        self.decoding_recent_size = decoding_recent_size
+        #Quest config
+        self.chunk_size = chunk_size
+        assert self.decoding_window_size - self.decoding_recent_size > 0
+
+    def update_kv(
+            self, 
+            key_states, 
+            query_states, 
+            value_states, 
+            attention_mask, 
+            num_key_value_groups
+            ):
+        '''
+        In QuestKVCluster update_kv use Full KV Cache to generate the first token
+        Return the prompt_length in the same time
+        '''
+        # check if prefix phase
+        assert key_states.shape[-2] == query_states.shape[-2]
+        bsz, num_heads, q_len, head_dim = query_states.shape
+        # print(f"ALLKV: prefill not compressed")
+
+        ##### Record prompt_length #####
+        QuestKVCluster.quest_prompt_length = key_states.shape[-2]
+
+        # reset decoding step
+        QuestKVCluster.current_decoding_step = 0
+        QuestKVCluster.jump_step = 0
+
+        return key_states, value_states, QuestKVCluster.quest_prompt_length
+    
+    def update_kv_in_decoding(
+            self,
+            key_states,
+            query_states,
+            value_states,
+            attention_mask,
+            position_ids,
+            num_key_value_groups,
+    ):
+        '''
+        In QuestKVCluster update_kv_in_decoding returns 
+        (selected pages in prefill KV Cache) & (some selected KV based on decoding_metric)
+        '''
+        #check if docoding phase
+        assert query_states.shape[-2]==1
+        bsz, num_heads, k_len, head_dim = key_states.shape
+        q_len = query_states.shape[-2]
+
+        if self.layer_idx < 2:
+            return key_states, value_states
+        
+        ########################
+        #  compute quest pages #
+        ########################
+        prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+        prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+
+        # prefill_attn_weights = torch.matmul(query_states, prefill_key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
+        
+        # sign是与query_states形状相同的向量, sign.item = 1 if positive, -1 if negative
+        sign = (query_states > 0) + (~(query_states > 0)) * -1
+        max_key = prefill_key_states * sign
+        postive_query = query_states * sign
+        seq_length = max_key.shape[-2]
+        padding_length = self.chunk_size - ((seq_length - 1) % self.chunk_size + 1)
+        max_key = torch.cat(
+            [
+                max_key,
+                torch.ones(
+                    (max_key.shape[0], max_key.shape[1], padding_length, max_key.shape[3]),
+                    device=max_key.device,
+                )
+                * torch.tensor(torch.finfo(max_key.dtype).min),#极小值
+            ],
+            dim=-2,
+        )
+        # chunk max_key into chunk_size tokens
+        chunk_max_key = max_key.reshape(
+            max_key.shape[0],
+            max_key.shape[1],
+            max_key.shape[2] // self.chunk_size,
+            self.chunk_size,
+            max_key.shape[3],
+        ).amax(dim=-2)
+        # duplicate chunk_max_key chunk_size times
+        chunk_max_key = chunk_max_key.unsqueeze(-2).repeat(1, 1, 1, self.chunk_size, 1)
+        # reshape chunk_max_key to the original shap
+        chunk_max_key = chunk_max_key.reshape(
+            chunk_max_key.shape[0], chunk_max_key.shape[1], -1, chunk_max_key.shape[-1]
+        )[:, :, :seq_length, :]
+        quantized_weight = torch.matmul(
+            postive_query.float(),
+            chunk_max_key.transpose(2, 3),
+        )
+        if attention_mask is not None:
+            if attention_mask.size() != (bsz, 1, q_len, k_len):
+                raise ValueError(
+                    f"Attention mask should be of size {(bsz, 1, q_len, k_len)}, but is {attention_mask.size()}"
+                )
+            quantized_weight = quantized_weight + attention_mask[:,:,:,:seq_length]
+            quantized_weight = torch.max(
+                quantized_weight, torch.tensor(torch.finfo(quantized_weight.dtype).min)
+            )
+        token_budget = min(seq_length, self.max_capacity_prompt)
+        if token_budget > 0:
+            mask_bottom = local_heavy_hitter_mask(
+                quantized_weight, token_budget, self.chunk_size
+            )  # Default: No padding applied to input
+        else:
+            mask_bottom = torch.zeros_like(quantized_weight, dtype=torch.bool)
+        
+        mask_bottom = torch.tril(mask_bottom, diagonal=position_ids[0][0].item())
+        if mask_bottom.size() != (bsz, num_heads, q_len, k_len):
+            raise ValueError(
+                    f"Attention mask should be of size {(bsz, num_heads, q_len, k_len)}, but is {mask_bottom.size()}"
+                )
+        mask_bottom = mask_bottom.reshape(bsz, num_heads, k_len).unsqueeze(-1).repeat(1, 1, 1, 1, head_dim)
+        new_shape = (key_states.size(0), key_states.size(1), token_budget , key_states.size(-1))
+        select_prefill_key_states = prefill_key_states[mask_bottom].view(new_shape)
+        if select_prefill_key_states.size() != (bsz, num_heads, token_budget, head_dim):
+            raise ValueError(
+                    f"select_prefill_k_states should be of size {(bsz, num_heads, token_budget, head_dim)}, but is {mask_bottom.size()}"
+                )
+        select_prefill_value_states = prefill_value_states[mask_bottom].view(new_shape)
+
+        # Set decoding compress strategy
+        decoding_key_states = key_states[QuestKVCluster.quest_prompt_length+1:]
+        decoding_value_states = value_states[QuestKVCluster.quest_prompt_length+1:]
+        
+        if self.decoding_metric == 'None':
+            select_decoding_key_states = decoding_key_states
+            select_decoding_value_states = decoding_value_states
+        elif self.decoding_metric == 'h2o':
+            decoding_window_size = self.decoding_window_size
+            window_size = self.decoding_recent_size
+            
+            if decoding_key_states.shape[-2] <  decoding_window_size:
+                select_decoding_key_states = decoding_key_states
+                select_decoding_value_states = decoding_value_states
+            else:
+                attn_weights = torch.matmul(query_states, decoding_key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                # [bsz num_head, q_len]
+                attn_cache = attn_weights_sum
+                # decoding cache
+                decoding_indices = attn_cache.topk( decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                indices = decoding_indices
+                k_past_compress =  decoding_key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress =  decoding_value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur =  decoding_key_states[:, :, -window_size:, :]
+                v_cur =  decoding_value_states[:, :, -window_size:, :]
+                select_decoding_key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                select_decoding_value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+
+
+
+        #contact select_prefill & select_decoding
+        key_states = torch.cat(select_prefill_key_states, select_decoding_key_states,dim=-2)
+        value_states = torch.cat(select_prefill_value_states, select_decoding_value_states, dim=-2)
+        return key_states, value_states
 
 def init_pyramidkv(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):

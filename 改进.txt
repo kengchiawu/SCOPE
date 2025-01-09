@@ -1,0 +1,4 @@
+1. 在QuestKVCluster中，或许把prompt存在Cluster中？优化decoding阶段计算？
+不用query_sign进行符号变化
+
+2. decoding_metric只写了None 和 h2o

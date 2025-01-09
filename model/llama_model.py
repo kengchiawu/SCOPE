@@ -13,7 +13,7 @@ from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.utils import (
     logging,
 )
-from model.kv_utils import init_pyramidkv,init_snapkv,init_H2O,init_StreamingLLM,init_ALLKV
+from model.kv_utils import init_pyramidkv,init_snapkv,init_H2O,init_StreamingLLM,init_ALLKV,init_Quest
 import math
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
@@ -1968,6 +1968,22 @@ def llama_flash_attn2_forward_SnapKV(
         attn_weights = None
 
     return attn_output, attn_weights, past_key_value
+
+def llama_attn_forward_Quest(
+    self,
+    hidden_states: torch.Tensor,
+    attention_mask: Optional[torch.Tensor] = None,
+    position_ids: Optional[torch.LongTensor] = None,
+    past_key_value: Optional[Cache] = None,
+    output_attentions: bool = False,
+    use_cache: bool = False,
+    cache_position: Optional[torch.LongTensor] = None,
+    position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # will become mandatory in v4.45
+    **kwargs,
+) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    bsz, q_len, _ = hidden_states.size()
+
+    init_Quest(self)
 
 from transformers.models.llama.modeling_llama import _prepare_4d_causal_attention_mask_with_cache_position, StaticCache # Add to fix 4.44.2
 
