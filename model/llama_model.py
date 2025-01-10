@@ -2056,7 +2056,7 @@ def llama_attn_forward_Quest(
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
             ##### Use kv_cluster to update kv in decoding phase #####
             history_key_states, history_value_states = past_key_value[self.layer_idx]
-            key_states_compress, value_states_compress, key_store, value_store = self.kv_cluster.update_kv_in_decoding(history_key_states, query_states, history_value_states, attention_mask,position_ids, self.num_key_value_groups)
+            key_states_compress, value_states_compress, key_store, value_store = self.kv_cluster.update_kv_in_decoding(history_key_states, query_states, history_value_states, attention_mask, position_ids, self.layer_idx, self.num_key_value_groups)
             past_key_value.key_cache[self.layer_idx] = key_store
             past_key_value.value_cache[self.layer_idx] = value_store
     
