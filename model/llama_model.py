@@ -1985,6 +1985,60 @@ def llama_attn_forward_Quest(
 
     init_Quest(self)
 
+    if self.config.pretraining_tp > 1:
+        key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
+        query_slices = self.q_proj.weight.split(
+            (self.num_heads * self.head_dim) // self.config.pretraining_tp, dim=0
+        )
+        key_slices = self.k_proj.weight.split(key_value_slicing, dim=0)
+        value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
+
+        query_states = [F.linear(hidden_states, query_slices[i]) for i in range(self.config.pretraining_tp)]
+        query_states = torch.cat(query_states, dim=-1)
+
+        key_states = [F.linear(hidden_states, key_slices[i]) for i in range(self.config.pretraining_tp)]
+        key_states = torch.cat(key_states, dim=-1)
+
+        value_states = [F.linear(hidden_states, value_slices[i]) for i in range(self.config.pretraining_tp)]
+        value_states = torch.cat(value_states, dim=-1)
+
+    else:
+        query_states = self.q_proj(hidden_states)
+        key_states = self.k_proj(hidden_states)
+        value_states = self.v_proj(hidden_states)
+
+    query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+    key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+    value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+
+    kv_seq_len = key_states.shape[-2]
+
+    if past_key_value is not None:
+        if self.layer_idx is None:
+            raise ValueError(
+                f"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} "
+                "for auto-regressive decoding with k/v caching, please make sure to initialize the attention class "
+                "with a layer index."
+            )
+        if hasattr(self, "kv_seq_len"): 
+            if self.kv_seq_len != 0:
+                kv_seq_len += self.kv_seq_len
+            else:
+                kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
+        else:
+            kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
+    
+    if position_embeddings is None: # Add to fix 4.44.2
+        logger.warning_once(
+            "The attention layers in this model are transitioning from computing the RoPE embeddings internally "
+            "through `position_ids` (2D tensor with the indexes of the tokens), to using externally computed "
+            "`position_embeddings` (Tuple of tensors, containing cos and sin). In v4.45 `position_ids` will be "
+            "removed and `position_embeddings` will be mandatory."
+        )
+        cos, sin = self.rotary_emb(value_states, position_ids)
+    else:
+        cos, sin = position_embeddings
+
 from transformers.models.llama.modeling_llama import _prepare_4d_causal_attention_mask_with_cache_position, StaticCache # Add to fix 4.44.2
 
 def prepare_inputs_for_generation_llama_new( # Add to fix 4.44.2
