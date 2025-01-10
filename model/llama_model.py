@@ -2038,6 +2038,30 @@ def llama_attn_forward_Quest(
         cos, sin = self.rotary_emb(value_states, position_ids)
     else:
         cos, sin = position_embeddings
+    
+    query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+    key_states = repeat_kv(key_states, self.num_key_value_groups)
+    value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+    if past_key_value is not None:
+        # sin and cos are specific to RoPE models; cache_position needed for the static cache
+        cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+
+        if key_states.shape[-2] == kv_seq_len:
+            self.kv_seq_len = kv_seq_len
+            key_states_compress, value_states_compress = self.kv_cluster.update_kv(key_states, query_states, value_states, attention_mask, self.num_key_value_groups)
+            past_key_value.update(key_states_compress, value_states_compress, self.layer_idx, cache_kwargs)
+        else:
+            self.kv_seq_len += q_len
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+            ##### Use kv_cluster to update kv in decoding phase #####
+            history_key_states, history_value_states = past_key_value[self.layer_idx]
+            key_states_compress, value_states_compress = self.kv_cluster.update_kv_in_decoding(history_key_states, query_states, history_value_states, attention_mask, self.num_key_value_groups)
+            past_key_value.key_cache[self.layer_idx] = key_states_compress
+            past_key_value.value_cache[self.layer_idx] = value_states_compress
+
+
+    
 
 from transformers.models.llama.modeling_llama import _prepare_4d_causal_attention_mask_with_cache_position, StaticCache # Add to fix 4.44.2
 

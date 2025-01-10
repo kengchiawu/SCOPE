@@ -1078,7 +1078,7 @@ def init_ALLKV(self):
         decoding_recent_size=self.config.decoding_recent_size,
         )
 
-def init_QuestKV(self):
+def init_Quest(self):
     if not hasattr(self, "kv_cluster"):
         if not hasattr(self.config, 'window_size'):
             self.config.window_size = 32
