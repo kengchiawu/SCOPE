@@ -1077,3 +1077,30 @@ def init_ALLKV(self):
         decoding_window_size=self.config.decoding_window_size,
         decoding_recent_size=self.config.decoding_recent_size,
         )
+
+def init_QuestKV(self):
+    if not hasattr(self, "kv_cluster"):
+        if not hasattr(self.config, 'window_size'):
+            self.config.window_size = 32
+        if not hasattr(self.config, 'max_capacity_prompt'):
+            self.config.max_capacity_prompt = 2048
+        if not hasattr(self.config, 'decoding_metric'):
+            self.config.decoding_metric = 'None'
+        if not hasattr(self.config, 'decoding_window_size'):
+            self.config.decoding_window_size = 1024
+        if not hasattr(self.config, 'decoding_recent_size'):
+            self.config.decoding_recent_size = 256
+        if not hasattr(self.config, 'page_select_strategy'):
+            self.config.page_select_strategy = 'amax'
+        if not hasattr(self.config, 'chunk_size'):
+            self.config.chunk_size = 16
+        
+    
+    self.kv_cluster = QuestKVCluster(
+        max_capacity_prompt = self.config.max_capacity_prompt,
+        page_select_strategy = 'amax',
+        decoding_metric = self.config.decoding_metric,
+        decoding_window_size = self.config.decoding_window_size,
+        decoding_recent_size = self.config.decoding_recent_size,
+        chunk_size = self.config.chunk_size,
+    )

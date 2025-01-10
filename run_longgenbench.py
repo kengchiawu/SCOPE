@@ -169,13 +169,15 @@ def main(args):
         
         
         if args.method != "FullKV":
-            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv"]:
+            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv", "questkv"]:
                 window_sizes = 8
             elif args.method.lower() in ["streamingllm"]:
                 window_sizes = max_capacity_prompts//2
 
             kernel_sizes = 7
             pooling = "maxpool"
+            chunk_size = args.chunk_size
+            page_select_strategy = args.page_select_strategy
 
             layers = len(model.model.layers)
             # check if window_sizes is a list
@@ -196,6 +198,10 @@ def main(args):
                 # model.model.layers[i].self_attn.config.delta = args.delta
                 model.model.layers[i].self_attn.config.delta = (output_max_len - model.model.layers[i].self_attn.config.decoding_recent_size) // (model.model.layers[i].self_attn.config.decoding_window_size - model.model.layers[i].self_attn.config.decoding_recent_size)
                 # print(f"layer {i} delta {model.model.layers[i].self_attn.config.delta}")
+
+                # new config for Quest
+                model.model_layers[i].self_attn.config.chunk_size = chunk_size
+                model.model_layers[i].self_attn.config.page_select_strategy = page_select_strategy
 
         context_length = batch_input_ids.shape[-1]
                 
@@ -263,6 +269,10 @@ if __name__ == "__main__":
     parser.add_argument("--decoding_metric", type=str, default="None", help="")
     parser.add_argument("--decoding_window_size", type=int, default=1024, help="")
     parser.add_argument("--decoding_recent_size", type=int, default=128, help="")
+    # new parameters for Quest
+    parser.add_argument("--chunk_size",type=int,default=16,help='')
+    parser.add_argument("--page_select_strategy",type=str,default='amax',help='')
+
     # parser.add_argument("--delta", type=int, default=15, help="")
     parser.add_argument("--steps", type=int, default=-1, help="maximum number of examples to evaluate per task.")
 
