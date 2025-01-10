@@ -1,9 +1,9 @@
 from importlib.metadata import version
 import transformers
 
-from model.llama_model import llama_flash_attn2_forward_ALLKV,llama_flash_attn2_forward_PyramidKV,llama_flash_attn2_forward_H2O,llama_flash_attn2_forward_SnapKV,llama_flash_attn2_forward_StreamingLLM,llama_flash_attn2_forward_Quest
+from model.llama_model import llama_flash_attn2_forward_ALLKV,llama_flash_attn2_forward_PyramidKV,llama_flash_attn2_forward_H2O,llama_flash_attn2_forward_SnapKV,llama_flash_attn2_forward_StreamingLLM#,llama_flash_attn2_forward_Quest
 from model.llama_model import llama_attn_forward_ALLKV,llama_attn_forward_PyramidKV,llama_attn_forward_H2O,llama_attn_forward_SnapKV,llama_attn_forward_StreamingLLM,llama_attn_forward_Quest
-from model.llama_model import llama_sdpa_attn_forward_ALLKV,llama_sdpa_attn_forward_PyramidKV,llama_sdpa_attn_forward_H2O,llama_sdpa_attn_forward_SnapKV,llama_sdpa_attn_forward_StreamingLLM,llama_sdpa_attn_forward_Quest
+from model.llama_model import llama_sdpa_attn_forward_ALLKV,llama_sdpa_attn_forward_PyramidKV,llama_sdpa_attn_forward_H2O,llama_sdpa_attn_forward_SnapKV,llama_sdpa_attn_forward_StreamingLLM#,llama_sdpa_attn_forward_Quest
 
 from model.mistral_model import mistral_flash_attn2_forward_ALLKV,mistral_flash_attn2_forward_PyramidKV,mistral_flash_attn2_forward_H2O,mistral_flash_attn2_forward_SnapKV,mistral_flash_attn2_forward_StreamingLLM
 from model.mistral_model import mistral_attn_forward_ALLKV,mistral_attn_forward_PyramidKV,mistral_attn_forward_H2O,mistral_attn_forward_SnapKV,mistral_attn_forward_StreamingLLM
@@ -48,8 +48,8 @@ def replace_llama(method):
     elif method == "quest":
         print("Using Quest!")
         transformers.models.llama.modeling_llama.LlamaAttention.forward = llama_attn_forward_Quest
-        transformers.models.llama.modeling_llama.LlamaFlashAttention2.forward = llama_flash_attn2_forward_Quest
-        transformers.models.llama.modeling_llama.LlamaSdpaAttention.forward = llama_sdpa_attn_forward_Quest
+        #transformers.models.llama.modeling_llama.LlamaFlashAttention2.forward = llama_flash_attn2_forward_Quest
+        #transformers.models.llama.modeling_llama.LlamaSdpaAttention.forward = llama_sdpa_attn_forward_Quest
         
         
     if method not in ["fullkv"]:

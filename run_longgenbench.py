@@ -132,9 +132,9 @@ def main(args):
     
     model_name = model_path.split("/")[-1]
 
-    os.makedirs(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}", args.dataset), exist_ok=True)
+    os.makedirs(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset), exist_ok=True)
 
-    fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}", args.dataset, f"{args.method}.json"), "w")
+    fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"{args.method}.json"), "w")
      
     for i in tqdm(range(0, len(prompts), args.eval_batch_size)):
         
@@ -169,7 +169,7 @@ def main(args):
         
         
         if args.method != "FullKV":
-            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv", "questkv"]:
+            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv", "quest"]:
                 window_sizes = 8
             elif args.method.lower() in ["streamingllm"]:
                 window_sizes = max_capacity_prompts//2

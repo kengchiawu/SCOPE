@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=4,5
 
-method=ALLKV # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM
+method=ALLKV # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
 max_capacity_prompts=2048
 attn_implementation=flash_attention_2 # Support "flash_attention_2", "sdpa", "eager".
 #source_path=$5
@@ -13,6 +13,9 @@ decoding_recent_size=256
 save_dir='./results' # path to result save_dir
 K=30 #30,60
 T=20
+#Quest
+chunk_size=16
+page_select_strategy='amax'
 
 python3 run_longgenbench.py \
     --method ${method} \
@@ -26,3 +29,5 @@ python3 run_longgenbench.py \
     --decoding_recent_size ${decoding_recent_size} \
     --decoding_metric ${decoding_metric} \
     --max_num_examples ${T} \
+    --chunk_size ${chunk_size} \
+    --page_select_strategy ${page_select_strategy} \
