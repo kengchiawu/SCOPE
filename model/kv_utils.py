@@ -819,6 +819,7 @@ class QuestKVCluster():
             value_states,
             attention_mask,
             position_ids,
+            layer_idx,
             num_key_value_groups,
     ):
         '''
@@ -830,8 +831,8 @@ class QuestKVCluster():
         bsz, num_heads, k_len, head_dim = key_states.shape
         q_len = query_states.shape[-2]
 
-        if self.layer_idx < 2:
-            return key_states, value_states
+        if layer_idx < 2:
+            return key_states, value_states, key_states, value_states
         
         ########################
         #  compute quest pages #

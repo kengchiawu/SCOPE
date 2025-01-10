@@ -200,8 +200,8 @@ def main(args):
                 # print(f"layer {i} delta {model.model.layers[i].self_attn.config.delta}")
 
                 # new config for Quest
-                model.model_layers[i].self_attn.config.chunk_size = chunk_size
-                model.model_layers[i].self_attn.config.page_select_strategy = page_select_strategy
+                model.model.layers[i].self_attn.config.chunk_size = chunk_size
+                model.model.layers[i].self_attn.config.page_select_strategy = page_select_strategy
 
         context_length = batch_input_ids.shape[-1]
                 

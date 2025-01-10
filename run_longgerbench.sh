@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=4,5
 
-method=ALLKV # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
+method=Quest # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
 max_capacity_prompts=2048
-attn_implementation=flash_attention_2 # Support "flash_attention_2", "sdpa", "eager".
+attn_implementation=eager # Support "flash_attention_2", "sdpa", "eager".
 #source_path=$5
 model_path='meta-llama/Llama-3.1-8B-Instruct'
 decoding_metric=fixed # H2O Support None,h2o,(fixed,linear,jump)---SCOPE
