@@ -810,7 +810,7 @@ class QuestKVCluster():
         QuestKVCluster.current_decoding_step = 0
         QuestKVCluster.jump_step = 0
 
-        return key_states, value_states, QuestKVCluster.quest_prompt_length
+        return key_states, value_states#, QuestKVCluster.quest_prompt_length
     
     def update_kv_in_decoding(
             self,
