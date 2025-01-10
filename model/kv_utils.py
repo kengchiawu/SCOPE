@@ -941,9 +941,11 @@ class QuestKVCluster():
 
 
         #contact select_prefill & select_decoding
-        key_states = torch.cat(select_prefill_key_states, select_decoding_key_states,dim=-2)
-        value_states = torch.cat(select_prefill_value_states, select_decoding_value_states, dim=-2)
-        return key_states, value_states
+        key_states_for_compute = torch.cat(select_prefill_key_states, select_decoding_key_states,dim=-2)
+        value_states_for_compute = torch.cat(select_prefill_value_states, select_decoding_value_states, dim=-2)
+        key_states_compress = torch.ct(prefill_key_states,select_decoding_key_states,dim = -2)
+        value_states_compress = torch.cat(prefill_value_states,select_decoding_value_states,dim = -2)
+        return key_states_for_compute, value_states_for_compute,key_states_compress,value_states_compress
 
 def init_pyramidkv(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):
