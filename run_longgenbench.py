@@ -134,7 +134,7 @@ def main(args):
 
     os.makedirs(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset), exist_ok=True)
 
-    fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"{args.method}.json"), "w")
+    fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"pre_{args.method}_dec_{args.decoding_metric}.json"), "w")
      
     for i in tqdm(range(0, len(prompts), args.eval_batch_size)):
         

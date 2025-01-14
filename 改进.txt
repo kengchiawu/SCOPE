@@ -2,3 +2,9 @@
 不用query_sign进行符号变化
 
 2. decoding_metric只写了None 和 h2o
+
+3. 在根据mask_bottom选择prefill_key_states时，报错"shape '[1, 32, -1, 128]' is invalid for input of size 8364288"
+    猜测因为，在挑选crucial_pages时，最后一个page，在不同头中被选择状态不一致，导致截断后mask_bottom中true的数量不是[num_head*head_dim]的倍数，产生报错
+    预计解决方案是把最后一个page默认选上？
+    优点：保证mask_bottom 中 True的个数对齐为32*128的倍数
+    缺点：token_budget不能全部用上，要减去padding_length
