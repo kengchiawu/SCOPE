@@ -109,6 +109,7 @@ if __name__ == '__main__':
         ["StreamingLLM"],
         ["H2O"],
         ["PyramidKV"],
+        ["Quest"],
         ["ALLKV"],
     ]
     
@@ -116,11 +117,11 @@ if __name__ == '__main__':
         
         results_list[0].append(dataset)
         
-        for idx, method in enumerate(["SnapKV", "StreamingLLM", "H2O", "PyramidKV", "ALLKV"]):
+        for idx, method in enumerate(["SnapKV", "StreamingLLM", "H2O", "PyramidKV", "Quest", "ALLKV"]):
             try:
                 args.method = method
                 args.dataset = dataset
-                args.eval_file = os.path.join(args.results_dir,dataset,f"{method}.json")
+                args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_None.json")
                 
                 scores = dict()
 

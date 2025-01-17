@@ -1,11 +1,11 @@
 export CUDA_VISIBLE_DEVICES=4,5
 
-method=Quest # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
+method=StreamingLLM # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
 max_capacity_prompts=2048
 attn_implementation=eager # Support "flash_attention_2", "sdpa", "eager".
 #source_path=$5
 model_path='meta-llama/Llama-3.1-8B-Instruct'
-decoding_metric=h2o # H2O Support None,h2o,(fixed,linear,jump)---SCOPE
+decoding_metric=None # H2O Support None,h2o,(fixed,linear,jump)---SCOPE
 decoding_window_size=512
 #decoding_window_size指的是decoding阶段KV Cache的新增长度上限
 decoding_recent_size=256

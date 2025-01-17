@@ -953,7 +953,7 @@ class QuestKVCluster():
         if self.decoding_metric == 'None':
             select_decoding_key_states = decoding_key_states
             select_decoding_value_states = decoding_value_states
-        elif self.decoding_metric == 'h2o':
+        elif self.decoding_metric == 'fixed':
             decoding_window_size = self.decoding_window_size
             window_size = self.decoding_recent_size
             
