@@ -370,6 +370,9 @@ class PyramidKVCluster():
 
 
 class SnapKVCluster():
+    current_decoding_step = 0
+    jump_step = 0
+    jump_layer = 0
     def __init__(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
         self.window_size = window_size
         self.max_capacity_prompt = max_capacity_prompt
@@ -440,6 +443,107 @@ class SnapKVCluster():
         ##### Set decoding compress strategy #####
         if self.decoding_metric == 'None':
             return key_states, value_states
+        elif self.decoding_metric == 'fixed':
+            decoding_window_size = self.decoding_window_size
+            window_size = self.decoding_recent_size
+            
+            if k_len < self.max_capacity_prompt + decoding_window_size:
+                return key_states, value_states
+            else:
+                attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim) # bsz, num_heads, q_len=1, k_len
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                attn_cache = attn_weights_sum
+                
+                # prefill cache
+                prefill_indices = torch.tensor(range(self.max_capacity_prompt), dtype=torch.int64).to(key_states.device)
+                prefill_indices = prefill_indices.unsqueeze(0).unsqueeze(0).unsqueeze(-1).repeat(bsz, num_heads, 1, head_dim)
+
+                # decoding cache
+                decoding_indices = attn_cache[:, :, self.max_capacity_prompt:].topk(decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                
+                # all cache
+                indices = torch.cat((prefill_indices, decoding_indices), dim=2)
+
+                k_past_compress = key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress = value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur = key_states[:, :, -window_size:, :]
+                v_cur = value_states[:, :, -window_size:, :]
+                key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+                return key_states, value_states
+        elif self.decoding_metric == 'linear':
+            window_size = self.decoding_recent_size
+            decoding_window_size = window_size + SnapKVCluster.current_decoding_step//(self.delta*self.num_hidden_layers) # TODO: change the step size
+            SnapKVCluster.current_decoding_step += 1
+            
+            if k_len < self.max_capacity_prompt + decoding_window_size:
+                return key_states, value_states
+            else:
+                attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                attn_cache = attn_weights_sum
+                
+                # prefill cache
+                prefill_indices = torch.tensor(range(self.max_capacity_prompt), dtype=torch.int64).to(key_states.device)
+                prefill_indices = prefill_indices.unsqueeze(0).unsqueeze(0).unsqueeze(-1).repeat(bsz, num_heads, 1, head_dim)
+
+                # decoding cache
+                decoding_indices = attn_cache[:, :, self.max_capacity_prompt:].topk(decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                
+                # all cache
+                indices = torch.cat((prefill_indices, decoding_indices), dim=2)
+
+                k_past_compress = key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress = value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur = key_states[:, :, -window_size:, :]
+                v_cur = value_states[:, :, -window_size:, :]
+                key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+                return key_states, value_states
+        elif self.decoding_metric == 'jump':
+            window_size = self.decoding_recent_size
+            decoding_window_size = window_size + SnapKVCluster.current_decoding_step//(self.delta*self.num_hidden_layers) # TODO: change the step size
+            SnapKVCluster.current_decoding_step += 1
+            
+            if k_len < self.max_capacity_prompt + decoding_window_size:
+                return key_states, value_states
+            elif SnapKVCluster.jump_step < self.delta*self.num_hidden_layers:
+                SnapKVCluster.jump_step += 1
+                return key_states, value_states
+            else:
+                SnapKVCluster.jump_layer += 1
+                if SnapKVCluster.jump_layer == self.num_hidden_layers:
+                    SnapKVCluster.jump_step = 0
+                    SnapKVCluster.jump_layer = 0
+                
+                
+                attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                attn_cache = attn_weights_sum
+                
+                # prefill cache
+                prefill_indices = torch.tensor(range(self.max_capacity_prompt), dtype=torch.int64).to(key_states.device)
+                prefill_indices = prefill_indices.unsqueeze(0).unsqueeze(0).unsqueeze(-1).repeat(bsz, num_heads, 1, head_dim)
+
+                # decoding cache
+                decoding_indices = attn_cache[:, :, self.max_capacity_prompt:].topk(decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                
+                # all cache
+                indices = torch.cat((prefill_indices, decoding_indices), dim=2)
+
+                k_past_compress = key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress = value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur = key_states[:, :, -window_size:, :]
+                v_cur = value_states[:, :, -window_size:, :]
+                key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+                return key_states, value_states
         else:
             # TODO
             raise ValueError('Decoding metric not supported')
