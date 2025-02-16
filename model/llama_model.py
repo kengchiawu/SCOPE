@@ -860,7 +860,7 @@ def llama_attn_forward_ALLKV(
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     bsz, q_len, _ = hidden_states.size()
 
-    init_ALLKV(self)
+    init_ALLKV(self, num_hidden_layers=self.config.num_hidden_layers)
 
     if self.config.pretraining_tp > 1:
         key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
@@ -1004,7 +1004,7 @@ def llama_sdpa_attn_forward_ALLKV(
             position_embeddings=position_embeddings, # Add to fix 4.44.2
         )
 
-    init_ALLKV(self)
+    init_ALLKV(self, num_hidden_layers=self.config.num_hidden_layers)
 
     bsz, q_len, _ = hidden_states.size()
 
@@ -1108,7 +1108,7 @@ def llama_flash_attn2_forward_ALLKV(
     **kwargs,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     # [SnapKV] register kv_cluster
-    init_ALLKV(self)
+    init_ALLKV(self, num_hidden_layers=self.config.num_hidden_layers)
     # LlamaFlashAttention2 attention does not support output_attentions
     if "padding_mask" in kwargs:
         warnings.warn(
@@ -1236,7 +1236,7 @@ def llama_attn_forward_StreamingLLM(
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     bsz, q_len, _ = hidden_states.size()
 
-    init_StreamingLLM(self)
+    init_StreamingLLM(self, num_hidden_layers=self.config.num_hidden_layers)
 
     if self.config.pretraining_tp > 1:
         key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
@@ -1380,7 +1380,7 @@ def llama_sdpa_attn_forward_StreamingLLM(
             position_embeddings=position_embeddings, # Add to fix 4.44.2
         )
 
-    init_StreamingLLM(self)
+    init_StreamingLLM(self, num_hidden_layers=self.config.num_hidden_layers)
 
     bsz, q_len, _ = hidden_states.size()
 
@@ -1483,7 +1483,7 @@ def llama_flash_attn2_forward_StreamingLLM(
     **kwargs,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     # [SnapKV] register kv_cluster
-    init_StreamingLLM(self)
+    init_StreamingLLM(self, num_hidden_layers=self.config.num_hidden_layers)
     # LlamaFlashAttention2 attention does not support output_attentions
     if "padding_mask" in kwargs:
         warnings.warn(
@@ -1611,7 +1611,7 @@ def llama_attn_forward_SnapKV(
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     bsz, q_len, _ = hidden_states.size()
 
-    init_snapkv(self)
+    init_snapkv(self, num_hidden_layers=self.config.num_hidden_layers)
 
     if self.config.pretraining_tp > 1:
         key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
@@ -1752,7 +1752,7 @@ def llama_sdpa_attn_forward_SnapKV(
             position_embeddings=position_embeddings, # Add to fix 4.44.2
         )
 
-    init_snapkv(self)
+    init_snapkv(self, num_hidden_layers=self.config.num_hidden_layers)
 
     bsz, q_len, _ = hidden_states.size()
 
@@ -1856,7 +1856,7 @@ def llama_flash_attn2_forward_SnapKV(
     **kwargs,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     # [SnapKV] register kv_cluster
-    init_snapkv(self)
+    init_snapkv(self, num_hidden_layers=self.config.num_hidden_layers)
     # LlamaFlashAttention2 attention does not support output_attentions
     if "padding_mask" in kwargs:
         warnings.warn(
@@ -1983,7 +1983,7 @@ def llama_attn_forward_Quest(
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     bsz, q_len, _ = hidden_states.size()
 
-    init_Quest(self)
+    init_Quest(self, num_hidden_layers=self.config.num_hidden_layers)
 
     if self.config.pretraining_tp > 1:
         key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp

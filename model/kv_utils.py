@@ -948,9 +948,9 @@ class StreamingLLMKVCluster():
         
 class ALLKVCluster():
     
-    allkv_max_capacity_prompt = 0
     current_decoding_step = 0
     jump_step = 0
+    jump_layer = 0
 
     def __init__(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256):
         ##### Add decoding window #####
@@ -1032,7 +1032,36 @@ class ALLKVCluster():
                 value_states = torch.cat([v_past_compress, v_cur], dim = 2)
                 return key_states, value_states
         elif self.decoding_metric == 'linear':
-            raise ValueError("wait implemented") # TODO
+            window_size = self.decoding_recent_size
+            decoding_window_size = window_size + H2OKVCluster.current_decoding_step//(self.delta*self.num_hidden_layers) # TODO: change the step size
+            H2OKVCluster.current_decoding_step += 1
+            
+            if k_len < self.max_capacity_prompt + decoding_window_size:
+                return key_states, value_states
+            else:
+                attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                attn_cache = attn_weights_sum
+                
+                # prefill cache
+                prefill_indices = torch.tensor(range(self.max_capacity_prompt), dtype=torch.int64).to(key_states.device)
+                prefill_indices = prefill_indices.unsqueeze(0).unsqueeze(0).unsqueeze(-1).repeat(bsz, num_heads, 1, head_dim)
+
+                # decoding cache
+                decoding_indices = attn_cache[:, :, self.max_capacity_prompt:].topk(decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                
+                # all cache
+                indices = torch.cat((prefill_indices, decoding_indices), dim=2)
+
+                k_past_compress = key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress = value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur = key_states[:, :, -window_size:, :]
+                v_cur = value_states[:, :, -window_size:, :]
+                key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+                return key_states, value_states
         elif self.decoding_metric == 'jump':
             window_size = self.decoding_recent_size
             decoding_window_size = window_size + ALLKVCluster.current_decoding_step//(15*32) # TODO: change the step size
@@ -1084,6 +1113,7 @@ class QuestKVCluster():
     quest_prompt_length = 0
     current_decoding_step = 0
     jump_step = 0
+    jump_layer = 0
 
     def __init__(
             self, 
@@ -1269,6 +1299,7 @@ class QuestKVCluster():
         if self.decoding_metric == 'None':
             select_decoding_key_states = decoding_key_states
             select_decoding_value_states = decoding_value_states
+        
         elif self.decoding_metric == 'fixed':
             decoding_window_size = self.decoding_window_size
             window_size = self.decoding_recent_size
@@ -1292,7 +1323,65 @@ class QuestKVCluster():
                 v_cur =  decoding_value_states[:, :, -window_size:, :]
                 select_decoding_key_states = torch.cat([k_past_compress, k_cur], dim = 2)
                 select_decoding_value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+        
+        elif self.decoding_metric == "linear":
+            window_size = self.decoding_recent_size
+            decoding_window_size = window_size + QuestKVCluster.current_decoding_step//(self.delta*self.num_hidden_layers) # TODO: change the step size
+            QuestKVCluster.current_decoding_step += 1
 
+            if decoding_key_states.shape[-2] <  decoding_window_size:
+                select_decoding_key_states = decoding_key_states
+                select_decoding_value_states = decoding_value_states
+            else:
+                attn_weights = torch.matmul(query_states, decoding_key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                # [bsz num_head, q_len]
+                attn_cache = attn_weights_sum
+                # decoding cache
+                decoding_indices = attn_cache.topk( decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                indices = decoding_indices
+                k_past_compress =  decoding_key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress =  decoding_value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur =  decoding_key_states[:, :, -window_size:, :]
+                v_cur =  decoding_value_states[:, :, -window_size:, :]
+                select_decoding_key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                select_decoding_value_states = torch.cat([v_past_compress, v_cur], dim = 2)
+
+        elif self.decoding_metric == "jump":
+            window_size = self.decoding_recent_size
+            decoding_window_size = window_size + QuestKVCluster.current_decoding_step//(self.delta*self.num_hidden_layers) # TODO: change the step size
+            QuestKVCluster.current_decoding_step += 1
+
+            if decoding_key_states.shape[-2] <  decoding_window_size:
+                select_decoding_key_states = decoding_key_states
+                select_decoding_value_states = decoding_value_states
+            elif QuestKVCluster.jump_step<self.delta*self.num_hidden_layers:
+                QuestKVCluster.jump_step += 1
+                select_decoding_key_states = decoding_key_states
+                select_decoding_value_states = decoding_value_states
+            else:
+                QuestKVCluster.jump_layer += 1
+                if QuestKVCluster.jump_layer == self.num_hidden_layers:
+                    QuestKVCluster.jump_step = 0
+                    QuestKVCluster.jump_layer = 0
+                
+                attn_weights = torch.matmul(query_states, decoding_key_states.transpose(2, 3)) / math.sqrt(head_dim)
+                attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+                attn_weights_sum = attn_weights[:, :, :, : -window_size].sum(dim = -2)
+                # [bsz num_head, q_len]
+                attn_cache = attn_weights_sum
+                # decoding cache
+                decoding_indices = attn_cache.topk( decoding_window_size - window_size, dim=-1).indices
+                decoding_indices = decoding_indices.unsqueeze(-1).expand(-1, -1, -1, head_dim)
+                indices = decoding_indices
+                k_past_compress =  decoding_key_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                v_past_compress =  decoding_value_states[:, :, :-window_size, :].gather(dim = 2, index = indices)
+                k_cur =  decoding_key_states[:, :, -window_size:, :]
+                v_cur =  decoding_value_states[:, :, -window_size:, :]
+                select_decoding_key_states = torch.cat([k_past_compress, k_cur], dim = 2)
+                select_decoding_value_states = torch.cat([v_past_compress, v_cur], dim = 2)
 
 
         #contact select_prefill & select_decoding
@@ -1319,6 +1408,8 @@ def init_pyramidkv(self, num_hidden_layers):
             self.config.decoding_window_size = 1024
         if not hasattr(self.config, 'decoding_recent_size'):
             self.config.decoding_recent_size = 256
+        if not hasattr(self.config, 'delta'):
+            self.config.delta = 15
     
     
     self.kv_cluster = PyramidKVCluster( 
@@ -1333,7 +1424,7 @@ def init_pyramidkv(self, num_hidden_layers):
         decoding_metric=self.config.decoding_metric
         )
  
-def init_snapkv(self):
+def init_snapkv(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):
         if not hasattr(self.config, 'window_size'):
             self.config.window_size = 32
@@ -1349,8 +1440,11 @@ def init_snapkv(self):
             self.config.decoding_window_size = 1024
         if not hasattr(self.config, 'decoding_recent_size'):
             self.config.decoding_recent_size = 256
+        if not hasattr(self.config, 'delta'):
+            self.config.delta = 15
     
     self.kv_cluster = SnapKVCluster( 
+        num_hidden_layers = num_hidden_layers,
         decoding_window_size=self.config.decoding_window_size,
         decoding_recent_size=self.config.decoding_recent_size,
         window_size = self.config.window_size, 
@@ -1392,7 +1486,7 @@ def init_H2O(self, num_hidden_layers):
         decoding_metric=self.config.decoding_metric
         )
 
-def init_StreamingLLM(self):
+def init_StreamingLLM(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):
         if not hasattr(self.config, 'window_size'):
             self.config.window_size = 32
@@ -1408,9 +1502,11 @@ def init_StreamingLLM(self):
             self.config.decoding_window_size = 1024
         if not hasattr(self.config, 'decoding_recent_size'):
             self.config.decoding_recent_size = 256
-    
+        if not hasattr(self.config, 'delta'):
+            self.config.delta = 15
     
     self.kv_cluster = StreamingLLMKVCluster(
+        num_hidden_layers = num_hidden_layers,
         decoding_window_size=self.config.decoding_window_size,
         decoding_recent_size=self.config.decoding_recent_size,
         window_size = self.config.window_size, 
@@ -1420,7 +1516,7 @@ def init_StreamingLLM(self):
         decoding_metric=self.config.decoding_metric
         )
     
-def init_ALLKV(self):
+def init_ALLKV(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):
         if not hasattr(self.config, 'decoding_metric'):
             self.config.decoding_metric = 'None'
@@ -1428,15 +1524,17 @@ def init_ALLKV(self):
             self.config.decoding_window_size = 1024
         if not hasattr(self.config, 'decoding_recent_size'):
             self.config.decoding_recent_size = 256
-    
+        if not hasattr(self.config, 'delta'):
+            self.config.delta = 15
     
     self.kv_cluster = ALLKVCluster(
+        num_hidden_layers = num_hidden_layers,
         decoding_metric=self.config.decoding_metric,
         decoding_window_size=self.config.decoding_window_size,
         decoding_recent_size=self.config.decoding_recent_size,
         )
 
-def init_Quest(self):
+def init_Quest(self, num_hidden_layers):
     if not hasattr(self, "kv_cluster"):
         if not hasattr(self.config, 'window_size'):
             self.config.window_size = 32
@@ -1452,9 +1550,11 @@ def init_Quest(self):
             self.config.page_select_strategy = 'amax'
         if not hasattr(self.config, 'chunk_size'):
             self.config.chunk_size = 16
-        
+        if not hasattr(self.config, 'delta'):
+            self.config.delta = 15
     
     self.kv_cluster = QuestKVCluster(
+        num_hidden_layers = num_hidden_layers,
         max_capacity_prompt = self.config.max_capacity_prompt,
         page_select_strategy = 'amax',
         decoding_metric = self.config.decoding_metric,
