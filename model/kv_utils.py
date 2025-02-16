@@ -373,7 +373,7 @@ class SnapKVCluster():
     current_decoding_step = 0
     jump_step = 0
     jump_layer = 0
-    def __init__(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
+    def __init__(self, decoding_metric = 'None',num_hidden_layers = 32, decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
         self.window_size = window_size
         self.max_capacity_prompt = max_capacity_prompt
         assert self.max_capacity_prompt - self.window_size > 0
@@ -384,6 +384,7 @@ class SnapKVCluster():
         self.decoding_window_size = decoding_window_size
         self.decoding_recent_size = decoding_recent_size
         assert self.decoding_window_size - self.decoding_recent_size > 0
+        self.num_hidden_layers = num_hidden_layers
 
     def reset(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
         self.window_size = window_size
@@ -765,7 +766,7 @@ class StreamingLLMKVCluster():
     jump_step = 0
     jump_layer = 0
     
-    def __init__(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
+    def __init__(self, decoding_metric = 'None', num_hidden_layers = 32,decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
         self.window_size = window_size
         self.max_capacity_prompt = max_capacity_prompt
         assert self.max_capacity_prompt - self.window_size > 0
@@ -775,6 +776,7 @@ class StreamingLLMKVCluster():
         self.decoding_metric = decoding_metric
         self.decoding_window_size = decoding_window_size
         self.decoding_recent_size = decoding_recent_size
+        self.num_hidden_layers = num_hidden_layers
         assert self.decoding_window_size - self.decoding_recent_size > 0
 
     def reset(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256, window_size = 64, max_capacity_prompt = 256 + 64, kernel_size = 5, pooling = 'avgpool'):
@@ -952,11 +954,16 @@ class ALLKVCluster():
     jump_step = 0
     jump_layer = 0
 
-    def __init__(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256):
+    def __init__(self, 
+                 decoding_metric = 'None', 
+                 decoding_window_size = 1024, 
+                 decoding_recent_size = 256,
+                 num_hidden_layers = 32,):
         ##### Add decoding window #####
         self.decoding_metric = decoding_metric
         self.decoding_window_size = decoding_window_size
         self.decoding_recent_size = decoding_recent_size
+        self.num_hidden_layers = num_hidden_layers
         assert self.decoding_window_size - self.decoding_recent_size > 0            
 
     def reset(self, decoding_metric = 'None', decoding_window_size = 1024, decoding_recent_size = 256):
@@ -1123,12 +1130,14 @@ class QuestKVCluster():
             decoding_window_size = 1024, 
             decoding_recent_size = 256, 
             chunk_size = 16,
+            num_hidden_layers = 32,
             ):
         self.max_capacity_prompt = max_capacity_prompt
         self.page_select_strategy = page_select_strategy
         self.decoding_metric = decoding_metric
         self.decoding_window_size = decoding_window_size
         self.decoding_recent_size = decoding_recent_size
+        self.num_hidden_layers = num_hidden_layers
         #Quest config
         self.chunk_size = chunk_size
         assert self.decoding_window_size - self.decoding_recent_size > 0
