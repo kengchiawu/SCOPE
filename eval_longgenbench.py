@@ -7,6 +7,7 @@ import re
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--results_dir', type=str, default=None)
+    parser.add_argument('--decoding_metric', type=str, default=None)
     return parser.parse_args(args)
 
 def extract_final_answer(answer):
@@ -121,7 +122,7 @@ if __name__ == '__main__':
             try:
                 args.method = method
                 args.dataset = dataset
-                args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_None.json")
+                args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_{args.decoding_metric}.json")
                 
                 scores = dict()
 
@@ -161,6 +162,6 @@ if __name__ == '__main__':
                 print(f"dataset {args.dataset} method {args.method} scores {None}")
                 
     import csv
-    with open(os.path.join(args.results_dir,f"results.csv"), 'w') as fp:
+    with open(os.path.join(args.results_dir,f"dec_{args.decoding_metric}_results.csv"), 'w') as fp:
         writer = csv.writer(fp)
         writer.writerows(results_list)

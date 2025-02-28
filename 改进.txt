@@ -8,3 +8,8 @@
     预计解决方案是把最后一个page默认选上？
     优点：保证mask_bottom 中 True的个数对齐为32*128的倍数
     缺点：token_budget不能全部用上，要减去padding_length
+
+
+25.2.16:
+    结果：fixed方法比较，部分方法性能下降明显，Quest超过ALLKV？
+    进一步思考：linear方法中delta， 修改
