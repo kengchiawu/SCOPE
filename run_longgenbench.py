@@ -269,9 +269,7 @@ if __name__ == "__main__":
     parser.add_argument("--decoding_metric", type=str, default="None", help="")
     parser.add_argument("--decoding_window_size", type=int, default=1024, help="")
     parser.add_argument("--decoding_recent_size", type=int, default=128, help="")
-    # new parameters for Quest
-    parser.add_argument("--chunk_size",type=int,default=16,help='')
-    parser.add_argument("--page_select_strategy",type=str,default='amax',help='')
+    
 
     # parser.add_argument("--delta", type=int, default=15, help="")
     parser.add_argument("--steps", type=int, default=-1, help="maximum number of examples to evaluate per task.")
@@ -289,7 +287,16 @@ if __name__ == "__main__":
         default="eval.templates.create_prompt_with_tulu_chat_format", 
         help="The function to use to create the chat format. This function will be dynamically imported. Please see examples in `eval/templates.py`."
     )
-    
+    '''
+    此后为添加的参数
+    '''
+    # new parameters for Quest
+    parser.add_argument("--chunk_size",type=int,default=16,help='')
+    parser.add_argument("--page_select_strategy",type=str,default='amax',help='')
+
+    # new parameters for the number of shots
+    parser.add_argument("--shot_number",type=int,default=8,help='the number of shots, we got 8 shots in gsm8k and 5shots in csqa')
+
     args = parser.parse_args()
     
     set_seed(args.seed)
@@ -334,6 +341,6 @@ if __name__ == "__main__":
         args.dataset = dataset
         if args.dataset == "csqa":
             args.K = int(args.K / 3 * 4) # GSM8K/MMLU has 30,60 questions in a single long input;CSQA has 40,80 questions
-        args.data_file = f"./data/longgenbench_examples/{args.dataset}_{args.K}.jsonl"
+        args.data_file = f"./data/longgenbench_examples/{args.dataset}_{args.K}_{args.shot_number}shot.jsonl"
         
         main(args)
