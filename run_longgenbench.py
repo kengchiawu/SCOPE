@@ -176,8 +176,11 @@ def main(args):
 
             kernel_sizes = 7
             pooling = "maxpool"
+
             chunk_size = args.chunk_size
             page_select_strategy = args.page_select_strategy
+
+            same_strategy = args.same_strategy
 
             layers = len(model.model.layers)
             # check if window_sizes is a list
@@ -202,6 +205,9 @@ def main(args):
                 # new config for Quest
                 model.model.layers[i].self_attn.config.chunk_size = chunk_size
                 model.model.layers[i].self_attn.config.page_select_strategy = page_select_strategy
+
+                # new config for differ_strategy
+                model.model.layers[i].self_attn.config.same_strategy = same_strategy
 
         context_length = batch_input_ids.shape[-1]
                 
@@ -296,6 +302,9 @@ if __name__ == "__main__":
 
     # new parameters for the number of shots
     parser.add_argument("--shot_number",type=int,default=8,help='the number of shots, we got 8 shots in gsm8k and 5shots in csqa')
+
+    # new parameter to define whether using diferent strategy in prefill and decoding phase
+    parser.add_argument("--same_strategy", type=bool, default=False, help="")
 
     args = parser.parse_args()
     
