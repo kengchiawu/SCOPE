@@ -13,9 +13,12 @@ decoding_recent_size=256
 save_dir='./results' # path to result save_dir
 K=30 #30,60
 T=20
+
 #Quest
 chunk_size=16
 page_select_strategy='amax'
+# number of shots in data
+shot_number = 8 # in gsm8K 8, csqa 5
 
 python3 run_longgenbench.py \
     --method ${method} \
@@ -31,3 +34,4 @@ python3 run_longgenbench.py \
     --max_num_examples ${T} \
     --chunk_size ${chunk_size} \
     --page_select_strategy ${page_select_strategy} \
+    ----shot_number ${shot_number}
