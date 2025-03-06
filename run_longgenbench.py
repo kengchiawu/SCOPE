@@ -342,6 +342,8 @@ if __name__ == "__main__":
     save_dir = args.save_dir
         
     max_capacity_prompts = args.max_capacity_prompts
+    if args.same_strategy:
+        max_capacity_prompts = max_capacity_prompts + args.decoding_window_size
     
     for idx, dataset in enumerate(datasets):
         

@@ -1276,6 +1276,9 @@ class QuestKVCluster():
         ########################
         prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
         prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+        if self.same_strategy:
+            prefill_key_states = key_states
+            prefill_value_states = value_states
 
         # prefill_attn_weights = torch.matmul(query_states, prefill_key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
         
@@ -1366,6 +1369,8 @@ class QuestKVCluster():
                 )
         select_prefill_value_states = torch.masked_select(prefill_value_states,mask_bottom).view(bsz,num_heads,-1,head_dim)
 
+        if self.same_strategy:
+            return select_prefill_key_states, select_prefill_value_states, prefill_key_states, prefill_value_states
         # Set decoding compress strategy
         decoding_key_states = key_states[:,:,QuestKVCluster.quest_prompt_length:,:]
         decoding_value_states = value_states[:,:,QuestKVCluster.quest_prompt_length:,:]
@@ -1497,7 +1502,7 @@ def init_pyramidkv(self, num_hidden_layers):
         kernel_size = self.config.kernel_size,
         pooling = self.config.pooling,
         decoding_metric= self.config.decoding_metric,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
         )
  
 def init_snapkv(self, num_hidden_layers):
@@ -1529,7 +1534,7 @@ def init_snapkv(self, num_hidden_layers):
         kernel_size = self.config.kernel_size,
         pooling = self.config.pooling,
         decoding_metric=self.config.decoding_metric,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
         )
 
 def init_H2O(self, num_hidden_layers):
@@ -1562,7 +1567,7 @@ def init_H2O(self, num_hidden_layers):
         kernel_size = self.config.kernel_size,
         pooling = self.config.pooling,
         decoding_metric=self.config.decoding_metric,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
         )
 
 def init_StreamingLLM(self, num_hidden_layers):
@@ -1594,7 +1599,7 @@ def init_StreamingLLM(self, num_hidden_layers):
         kernel_size = self.config.kernel_size,
         pooling = self.config.pooling,
         decoding_metric=self.config.decoding_metric,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
         )
     
 def init_ALLKV(self, num_hidden_layers):
@@ -1614,7 +1619,7 @@ def init_ALLKV(self, num_hidden_layers):
         decoding_metric=self.config.decoding_metric,
         decoding_window_size=self.config.decoding_window_size,
         decoding_recent_size=self.config.decoding_recent_size,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
         )
 
 def init_Quest(self, num_hidden_layers):
@@ -1645,5 +1650,5 @@ def init_Quest(self, num_hidden_layers):
         decoding_window_size = self.config.decoding_window_size,
         decoding_recent_size = self.config.decoding_recent_size,
         chunk_size = self.config.chunk_size,
-        same_strategy = self.same_strategy,
+        same_strategy = self.config.same_strategy,
     )
