@@ -3,3 +3,4 @@ kv_cache/
 results/
 *.txt
 tools/
+model/__pycache__/

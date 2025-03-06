@@ -18,8 +18,9 @@ T=20
 chunk_size=16
 page_select_strategy='amax'
 # number of shots in data
-shot_number=8 # in gsm8K 8, csqa 5
+shot_number=5 # in gsm8K 8, csqa 5
 same_strategy=False
+# 如果设置same_strategy=Ture，则max_capacity_prompts应该设置为max_capacity_prompts+decoding_window_size，重复使用update_kv
 
 python3 run_longgenbench.py \
     --method ${method} \

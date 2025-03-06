@@ -9,7 +9,7 @@ from tqdm import tqdm
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-datasets = ["gsm8k"]#, "csqa", "mmlu"]
+datasets = ["csqa"]#, "gsm8k", "mmlu"]
 
 dataset2maxlen_8K = {
     "gsm8k": 7950,
