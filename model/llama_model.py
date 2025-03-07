@@ -945,6 +945,19 @@ def llama_attn_forward_ALLKV(
             past_key_value.update(key_states_compress, value_states_compress, self.layer_idx, cache_kwargs)
             self.pre_len = kv_seq_len
             # torch.save(past_key_value.key_cache[self.layer_idx],f'./kv_cache/prefill/layer_{self.layer_idx}.pt')
+        elif self.config.same_strategy:
+            self.kv_seq_len += q_len
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+            ##### Use kv_cluster to update kv in decoding phase #####
+            history_key_states, history_value_states = past_key_value[self.layer_idx]
+            key_states_compress, value_states_compress = self.kv_cluster.update_kv(history_key_states, query_states, history_value_states, attention_mask, self.num_key_value_groups)
+            past_key_value.key_cache[self.layer_idx] = key_states_compress
+            past_key_value.value_cache[self.layer_idx] = value_states_compress
+            # if  past_key_value.key_cache[self.layer_idx].shape[-2] == 6000:
+            #    torch.save(past_key_value.key_cache[self.layer_idx],f'./kv_cache/decode/prefill_len_{self.pre_len}_decode_len_{past_key_value.key_cache[self.layer_idx].shape[-2]}_layer_{self.layer_idx}.pt')
+            # torch.cuda.empty_cache()
+            # print(f"Original value_states size: {value_states.size()}")
+            # print(f"Compressed value_states size: {value_states_compress.size()}")
         else:
             self.kv_seq_len += q_len
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
@@ -1331,7 +1344,7 @@ def llama_attn_forward_StreamingLLM(
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
             ##### Use kv_cluster to update kv in decoding phase #####
             history_key_states, history_value_states = past_key_value[self.layer_idx]
-            key_states_compress, value_states_compress = self.kv_cluster.update_kv_in(history_key_states, query_states, history_value_states, attention_mask, self.num_key_value_groups)
+            key_states_compress, value_states_compress = self.kv_cluster.update_kv(history_key_states, query_states, history_value_states, attention_mask, self.num_key_value_groups)
             past_key_value.key_cache[self.layer_idx] = key_states_compress
             past_key_value.value_cache[self.layer_idx] = value_states_compress
         else:

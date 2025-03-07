@@ -141,7 +141,8 @@ class PyramidKVCluster():
     def update_kv(self, key_states, query_states, value_states, attention_mask, num_key_value_groups):
         
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         
         # TODO
@@ -429,7 +430,8 @@ class SnapKVCluster():
     def update_kv(self, key_states, query_states, value_states, attention_mask, num_key_value_groups):
         
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         
         if q_len < self.max_capacity_prompt:
@@ -631,7 +633,8 @@ class H2OKVCluster():
     def update_kv(self, key_states, query_states, value_states, attention_mask, num_key_value_groups):
         
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
 
         # reset decoding step
@@ -847,7 +850,8 @@ class StreamingLLMKVCluster():
     def update_kv(self, key_states, query_states, value_states, attention_mask, num_key_value_groups):
         
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         
         if q_len < self.max_capacity_prompt:
@@ -1034,7 +1038,8 @@ class ALLKVCluster():
     def update_kv(self, key_states, query_states, value_states, attention_mask, num_key_value_groups):
         
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         # print(f"ALLKV: prefill not compressed")
 
@@ -1236,7 +1241,8 @@ class QuestKVCluster():
         Return the prompt_length in the same time
         '''
         # check if prefix phase
-        assert key_states.shape[-2] == query_states.shape[-2]
+        if not self.same_strategy:
+            assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         # print(f"ALLKV: prefill not compressed")
 
@@ -1369,6 +1375,7 @@ class QuestKVCluster():
                 )
         select_prefill_value_states = torch.masked_select(prefill_value_states,mask_bottom).view(bsz,num_heads,-1,head_dim)
 
+        # if self.same_strategy，prefill_key_states = key_states，到此完成quest操作，提前return
         if self.same_strategy:
             return select_prefill_key_states, select_prefill_value_states, prefill_key_states, prefill_value_states
         # Set decoding compress strategy
