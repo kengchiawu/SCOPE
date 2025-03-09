@@ -133,8 +133,10 @@ def main(args):
     model_name = model_path.split("/")[-1]
 
     os.makedirs(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset), exist_ok=True)
-
-    fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"pre_{args.method}_dec_{args.decoding_metric}.json"), "w")
+    if args.same_strategy:
+        fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"{args.method}.json"), "w")
+    else:
+        fout = open(os.path.join(args.save_dir, f"{model_name}_{args.max_capacity_prompts}_{args.attn_implementation}", args.dataset, f"pre_{args.method}_dec_{args.decoding_metric}.json"), "w")
      
     for i in tqdm(range(0, len(prompts), args.eval_batch_size)):
         
@@ -347,7 +349,7 @@ if __name__ == "__main__":
     
     for idx, dataset in enumerate(datasets):
         
-        print(f"Working on max_capacity_prompts {args.max_capacity_prompts} dataset {dataset} - {idx}/{len(datasets)}")
+        print(f"Working on max_capacity_prompts {max_capacity_prompts} dataset {dataset} - {idx}/{len(datasets)}")
         
         args.dataset = dataset
         if args.dataset == "csqa":

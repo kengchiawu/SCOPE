@@ -18,10 +18,10 @@ chunk_size=16
 page_select_strategy='amax'
 # number of shots in data
 shot_number=5 # in gsm8K 8, csqa 5
-same_strategy=False
+same_strategy=True
 # 如果设置same_strategy=Ture，则max_capacity_prompts应该设置为max_capacity_prompts+decoding_window_size，重复使用update_kv
 
-for method in ALLKV PyramidKV SnapKV H2O StreamingLLM # Quest
+for method in ALLKV PyramidKV SnapKV H2O StreamingLLM Quest
 do
     for decoding_metric in None # fixed linear jump
     do
@@ -40,6 +40,6 @@ do
             --chunk_size ${chunk_size} \
             --page_select_strategy ${page_select_strategy} \
             --shot_number ${shot_number} \
-            --same_strategy ${same_strategy} \
+            --same_strategy ${same_strategy} 
     done
 done

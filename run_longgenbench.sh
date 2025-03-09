@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=4,5
 
-method=ALLKV # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
+method=Quest # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
 max_capacity_prompts=1024
 attn_implementation=eager # Support "flash_attention_2", "sdpa", "eager".
 #source_path=$5
@@ -19,7 +19,7 @@ chunk_size=16
 page_select_strategy='amax'
 # number of shots in data
 shot_number=5 # in gsm8K 8, csqa 5
-same_strategy=False
+same_strategy=True
 # 如果设置same_strategy=Ture，则max_capacity_prompts应该设置为max_capacity_prompts+decoding_window_size，重复使用update_kv
 
 python3 run_longgenbench.py \
