@@ -8,6 +8,9 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--results_dir', type=str, default=None)
     parser.add_argument('--decoding_metric', type=str, default=None)
+
+    # new parameter to define whether using diferent strategy in prefill and decoding phase
+    parser.add_argument("--same_strategy", type=bool, default=False, help="")
     return parser.parse_args(args)
 
 def extract_final_answer(answer):
@@ -54,14 +57,20 @@ def extract_predicted_choices(pred):
     """Extracts the predicted answers (A, B, C, D, E, etc.) from the pred string, considering Answer_... patterns."""
     matches = re.findall(r'Answer_\d+:\s*.*?answer is \((.*?)\)', pred)
     return matches
+def extract_predicted_choices_csqa(pred):
+    """Extracts the predicted answers (A, B, C, D, E, etc.) from the pred string, considering Answer_... patterns."""
+    matches = re.findall(r"Answer_\d+:\s*.*?\s*The answer is\s*\(([A-Z])\)", pred)
+    return matches
 
-
-def compare_choices(pred, answers):
+def compare_choices(pred, answers,dataset):
     # Extract final answers from the answers list
     expected_answers = answers
     
     # Extract predicted answers from the pred string
-    predicted_answers = extract_predicted_choices(pred)
+    if dataset in ['csqa']:
+        predicted_answers = extract_predicted_choices_csqa(pred)
+    else:
+        predicted_answers = extract_predicted_choices(pred)
 
     # print(f'Expected: {expected_answers}')
     # print(f'Predicted: {predicted_answers}')
@@ -91,7 +100,7 @@ def scorer(dataset, predictions, answers):
         if dataset in ["gsm8k"]:
             scores.append(compare_answers(prediction, ground_truths))
         elif dataset in ["mmlu","csqa"]:
-            scores.append(compare_choices(prediction, ground_truths))
+            scores.append(compare_choices(prediction, ground_truths,dataset))
 
     return round(100 * np.mean(scores), 4)
 
@@ -101,7 +110,7 @@ if __name__ == '__main__':
     dataset_list = [
         "gsm8k",
         #"mmlu",
-        #"csqa",
+        "csqa",
         ]
     
     results_list = [
@@ -122,8 +131,10 @@ if __name__ == '__main__':
             try:
                 args.method = method
                 args.dataset = dataset
-                args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_{args.decoding_metric}.json")
-                
+                if args.same_strategy:
+                    args.eval_file = os.path.join(args.results_dir,dataset,f"{args.method}.json") # pre_{args.method}_dec_{args.decoding_metric}.json")
+                else:
+                    args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_{args.decoding_metric}.json")
                 scores = dict()
 
                 predictions, answers, lengths = [], [], []
@@ -162,6 +173,11 @@ if __name__ == '__main__':
                 print(f"dataset {args.dataset} method {args.method} scores {None}")
                 
     import csv
-    with open(os.path.join(args.results_dir,f"dec_{args.decoding_metric}_results.csv"), 'w') as fp:
-        writer = csv.writer(fp)
-        writer.writerows(results_list)
+    if args.same_strategy:
+        with open(os.path.join(args.results_dir,f"results_same_strategy.csv"), 'w') as fp:
+            writer = csv.writer(fp)
+            writer.writerows(results_list)
+    else:
+        with open(os.path.join(args.results_dir,f"dec_{args.decoding_metric}_results.csv"), 'w') as fp:
+            writer = csv.writer(fp)
+            writer.writerows(results_list)
