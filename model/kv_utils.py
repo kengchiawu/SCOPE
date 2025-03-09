@@ -1280,11 +1280,13 @@ class QuestKVCluster():
         ########################
         #  compute quest pages #
         ########################
-        prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
-        prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
         if self.same_strategy:
             prefill_key_states = key_states
             prefill_value_states = value_states
+        else:
+            prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+            prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+        
 
         # prefill_attn_weights = torch.matmul(query_states, prefill_key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
         
