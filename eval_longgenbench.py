@@ -10,7 +10,7 @@ def parse_args(args=None):
     parser.add_argument('--decoding_metric', type=str, default=None)
 
     # new parameter to define whether using diferent strategy in prefill and decoding phase
-    parser.add_argument("--same_strategy", type=bool, default=False, help="")
+    parser.add_argument("--same_strategy",  action='store_true', default=False, help="")
     return parser.parse_args(args)
 
 def extract_final_answer(answer):
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     
     dataset_list = [
         "gsm8k",
-        #"mmlu",
+        "mmlu",
         "csqa",
         ]
     
@@ -131,7 +131,7 @@ if __name__ == '__main__':
             try:
                 args.method = method
                 args.dataset = dataset
-                if args.same_strategy:
+                if dataset in ['csqa','mmlu']:# args.same_strategy:
                     args.eval_file = os.path.join(args.results_dir,dataset,f"{args.method}.json") # pre_{args.method}_dec_{args.decoding_metric}.json")
                 else:
                     args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_{args.decoding_metric}.json")
@@ -177,7 +177,9 @@ if __name__ == '__main__':
         with open(os.path.join(args.results_dir,f"results_same_strategy.csv"), 'w') as fp:
             writer = csv.writer(fp)
             writer.writerows(results_list)
+            print(f"评估结果写入{os.path.join(args.results_dir,f'results_same_strategy.csv')},decode_{args.decoding_metric}")
     else:
         with open(os.path.join(args.results_dir,f"dec_{args.decoding_metric}_results.csv"), 'w') as fp:
             writer = csv.writer(fp)
             writer.writerows(results_list)
+            print(f"评估结果写入{os.path.join(args.results_dir,f'dec_{args.decoding_metric}_results.csv')}")
