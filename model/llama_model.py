@@ -940,6 +940,7 @@ def llama_attn_forward_ALLKV(
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
 
         if key_states.shape[-2] == kv_seq_len:
+            self.save_attention = True
             self.kv_seq_len = kv_seq_len
             key_states_compress, value_states_compress = self.kv_cluster.update_kv(key_states, query_states, value_states, attention_mask, self.num_key_value_groups)
             past_key_value.update(key_states_compress, value_states_compress, self.layer_idx, cache_kwargs)
@@ -982,6 +983,11 @@ def llama_attn_forward_ALLKV(
 
     # upcast attention to fp32
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+    if self.save_attention:
+        # 保存prefill部分的attention score [b , heads, query_len, key_len]
+        # V 0.0 只保存first token生成时
+        torch.save(attn_weights,f"/homeB/youkangqi/SCOPE/results/llama-3.1-8b-instruct_2048_eager/attn_score/gsm8k/layer_{self.layer_idx}_prelen_{self.pre_len}.pt")
+        self.save_attention = False
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states)
 
