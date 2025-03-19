@@ -1241,8 +1241,8 @@ class QuestKVCluster():
         Return the prompt_length in the same time
         '''
         # check if prefix phase
-        if not self.same_strategy:
-            assert key_states.shape[-2] == query_states.shape[-2]
+        # if not self.same_strategy:
+        #    assert key_states.shape[-2] == query_states.shape[-2]
         bsz, num_heads, q_len, head_dim = query_states.shape
         # print(f"ALLKV: prefill not compressed")
 
@@ -1280,6 +1280,7 @@ class QuestKVCluster():
         ########################
         #  compute quest pages #
         ########################
+        '''这里暂时直接使用same_strategy'''
         if self.same_strategy:
             prefill_key_states = key_states
             prefill_value_states = value_states
@@ -1287,7 +1288,8 @@ class QuestKVCluster():
             prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
             prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
         
-
+        # prefill_key_states = key_states[:,:,:QuestKVCluster.quest_prompt_length,:]
+        # prefill_value_states = value_states[:,:,:QuestKVCluster.quest_prompt_length,:]
         # prefill_attn_weights = torch.matmul(query_states, prefill_key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
         
         # sign是与query_states形状相同的向量, sign.item = 1 if positive, -1 if negative
