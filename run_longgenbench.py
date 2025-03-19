@@ -9,7 +9,7 @@ from tqdm import tqdm
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-datasets = ["csqa"]#, "gsm8k", "mmlu"]
+datasets = ["gsm8k"]#,"mmlu" ,"csqa" ]
 
 dataset2maxlen_8K = {
     "gsm8k": 7950,
@@ -102,7 +102,7 @@ def main(args):
                 # chat models are better off without build prompts on these tasks
                 args.dataset not in [""] # "gsm8k"... , 
             ):
-                print(f"using template for {args.dataset}")
+                #print(f"using template for {args.dataset}")
                 # prompt = build_chat_llama3(system_prompt, example["prompt"])
                 # prompt = build_chat_llama3_wo_system(system_prompt, example["prompt"])
                 prompt = build_chat_llama3_modify(system_prompt, example["prompt"])
@@ -221,7 +221,8 @@ def main(args):
             do_sample=False,
             temperature=1.0,
             min_length=context_length+1,
-            eos_token_id=[tokenizer.eos_token_id]
+            eos_token_id=[tokenizer.eos_token_id],
+            #new parameter
         )
 
 
@@ -232,7 +233,7 @@ def main(args):
         batch_generations = batch_outputs
 
         torch.cuda.empty_cache()
-
+        # raise ValueError("运行一行就停止")
         for j in range(args.eval_batch_size):
             
             example = {}
@@ -306,7 +307,7 @@ if __name__ == "__main__":
     parser.add_argument("--shot_number",type=int,default=8,help='the number of shots, we got 8 shots in gsm8k and 5shots in csqa')
 
     # new parameter to define whether using diferent strategy in prefill and decoding phase
-    parser.add_argument("--same_strategy", type=bool, default=False, help="")
+    parser.add_argument("--same_strategy",  action='store_true', default=False, help="")
 
     args = parser.parse_args()
     
@@ -344,8 +345,9 @@ if __name__ == "__main__":
     save_dir = args.save_dir
         
     max_capacity_prompts = args.max_capacity_prompts
-    if args.same_strategy:
+    if args.same_strategy == True:
         max_capacity_prompts = max_capacity_prompts + args.decoding_window_size
+        raise ValueError("Now it's same_strategy")
     
     for idx, dataset in enumerate(datasets):
         
@@ -355,5 +357,5 @@ if __name__ == "__main__":
         if args.dataset == "csqa":
             args.K = int(args.K / 3 * 4) # GSM8K/MMLU has 30,60 questions in a single long input;CSQA has 40,80 questions
         args.data_file = f"./data/longgenbench_examples/{args.dataset}_{args.K}_{args.shot_number}shot.jsonl"
-        
+        print(f"eval on file: {args.data_file}")
         main(args)
