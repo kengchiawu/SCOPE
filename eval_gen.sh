@@ -4,4 +4,4 @@ decoding_metric="None"
 python3 eval_longgenbench.py \
     --results_dir ${results_dir} \
     --decoding_metric ${decoding_metric}  \
-    --same_strategy 
+    #--same_strategy 

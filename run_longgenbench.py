@@ -171,7 +171,7 @@ def main(args):
         
         
         if args.method != "FullKV":
-            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv", "quest"]:
+            if args.method.lower() in ["snapkv","pyramidkv","h2o","allkv", "quest","headwise"]:
                 window_sizes = 8
             elif args.method.lower() in ["streamingllm"]:
                 window_sizes = max_capacity_prompts//2
@@ -219,7 +219,7 @@ def main(args):
             max_new_tokens=output_max_len,
             num_beams=1,
             do_sample=False,
-            temperature=1.0,
+            temperature=0.7,
             min_length=context_length+1,
             eos_token_id=[tokenizer.eos_token_id],
             #new parameter

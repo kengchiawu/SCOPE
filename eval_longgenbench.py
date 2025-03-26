@@ -120,6 +120,7 @@ if __name__ == '__main__':
         ["H2O"],
         ["PyramidKV"],
         ["Quest"],
+        ["Headwise"],
         ["ALLKV"],
     ]
     
@@ -127,11 +128,11 @@ if __name__ == '__main__':
         
         results_list[0].append(dataset)
         
-        for idx, method in enumerate(["SnapKV", "StreamingLLM", "H2O", "PyramidKV", "Quest", "ALLKV"]):
+        for idx, method in enumerate(["SnapKV", "StreamingLLM", "H2O", "PyramidKV", "Quest", "Headwise", "ALLKV"]):
             try:
                 args.method = method
                 args.dataset = dataset
-                if dataset in ['csqa','mmlu']:# args.same_strategy:
+                if args.same_strategy:# dataset in ['csqa','mmlu']:
                     args.eval_file = os.path.join(args.results_dir,dataset,f"{args.method}.json") # pre_{args.method}_dec_{args.decoding_metric}.json")
                 else:
                     args.eval_file = os.path.join(args.results_dir,dataset,f"pre_{args.method}_dec_{args.decoding_metric}.json")

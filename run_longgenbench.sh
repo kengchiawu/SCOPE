@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=4,5
 
-method=ALLKV # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
+method=Headwise # Support ALLKV, PyramidKV, SnapKV, H2O, StreamingLLM, Quest
 max_capacity_prompts=2048
 attn_implementation=eager # Support "flash_attention_2", "sdpa", "eager".
 #source_path=$5
