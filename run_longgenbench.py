@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import random
 import argparse
 
@@ -62,6 +63,19 @@ def build_chat_llama3(system_prompt, prompt):
 def build_chat_llama3_wo_system(system_prompt, prompt):
     return f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{system_prompt}\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
 
+# 自定义Streamer用于捕获时间戳
+class TimingStreamer:
+    def __init__(self):
+        self.timestamps = []
+        self.start_time = None
+        
+    def put(self, value):
+        if self.start_time is None:
+            self.start_time = time.time()
+        self.timestamps.append(time.time())
+        
+    def end(self):
+        pass
 
 def main(args):
     print("Loading data...")
@@ -212,7 +226,8 @@ def main(args):
                 model.model.layers[i].self_attn.config.same_strategy = same_strategy
 
         context_length = batch_input_ids.shape[-1]
-                
+        streamer = TimingStreamer()
+        start_time = time.time()
         output = model.generate(
             **tokenized_prompts,
             output_attentions = args.output_attentions,
@@ -223,8 +238,15 @@ def main(args):
             min_length=context_length+1,
             eos_token_id=[tokenizer.eos_token_id],
             #new parameter
+            streamer = streamer,
         )
-
+        end_time = time.time()
+        # 计算时间指标
+        total_tokens = len(streamer.timestamps)
+        ttft = streamer.timestamps[0] - start_time if total_tokens > 0 else 0
+        total_time = end_time - start_time
+        time_per_token = [streamer.timestamps[i] - (streamer.timestamps[i-1] if i>0 else start_time) 
+                        for i in range(total_tokens)]
 
         batch_outputs =tokenizer.batch_decode([output[0][context_length:]], skip_special_tokens=True)
         
@@ -241,7 +263,10 @@ def main(args):
             example["prompt"] = batch_prompts[j]
             example["questions"] = batch_questionss[j]
             example["answers"] = batch_answerss[j]
-            example["length"] = batch_lengths[j]
+            example["pre_length"] = batch_lengths[j]
+            example["gen_length"] = total_tokens
+            example["TTFT"] = ttft
+            example["TPOT"] = time_per_token
             example["pred"] = batch_generations[j]
 
             fout.write(json.dumps(example) + "\n")
