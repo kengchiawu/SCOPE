@@ -158,7 +158,13 @@ def llama_attn_forward_PyramidKV(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -194,7 +200,17 @@ def llama_attn_forward_PyramidKV(
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states)
-
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -549,7 +565,13 @@ def llama_attn_forward_H2O(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -587,7 +609,17 @@ def llama_attn_forward_H2O(
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states)
-
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -935,7 +967,13 @@ def llama_attn_forward_ALLKV(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -991,7 +1029,17 @@ def llama_attn_forward_ALLKV(
         self.save_attention = False
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states) #value.shape = [bs, n_heads, kv_len, head_dim]
-
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -1334,7 +1382,13 @@ def llama_attn_forward_StreamingLLM(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -1375,7 +1429,17 @@ def llama_attn_forward_StreamingLLM(
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states)
-
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -1718,6 +1782,13 @@ def llama_attn_forward_SnapKV(
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
 
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
         cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -1756,7 +1827,17 @@ def llama_attn_forward_SnapKV(
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
     attn_output = torch.matmul(attn_weights, value_states)
-
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -2213,6 +2294,13 @@ def llama_attn_forward_Headwise(
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
+    # 创建CUDA事件
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    # 同步并记录开始时间
+    torch.cuda.synchronize()
+    start_event.record()
 
     if past_key_value is not None:
         # sin and cos are specific to RoPE models; cache_position needed for the static cache
@@ -2220,16 +2308,13 @@ def llama_attn_forward_Headwise(
         if key_states.shape[-2] == kv_seq_len:
             self.kv_seq_len = kv_seq_len
             self.is_prefill = True
+            self.pre_len = kv_seq_len
             # key_state.shape = [batch_size, num_heads, seq_len, head_dim]
             key_states, value_states = past_key_value.update(
                 key_states, value_states, self.layer_idx, cache_kwargs
             )
-            head_wise_budget = self.headwise_attention.headwise_attention_computaion_prefill(
-                query_states,
-                key_states,
-                value_states,
-                # gamma = self.config.headwise_gamma,
-            )
+            
+            # raise ValueError(f"head_wise 待修改,添加triton版本")
             # prefill_mask.shape = [batch_size, num_heads, 1, kv_len]
             # head_wise_budget.shape = [bsz, self.num_heads]
             # prefill_mask = prefill_mask.repeat(1,1,q_len,1)
@@ -2240,15 +2325,48 @@ def llama_attn_forward_Headwise(
                 key_states, value_states, self.layer_idx, cache_kwargs
             )
             # attn_output = self.headwise_attention.headwise_attention_computation_decode()
+    if self.is_prefill & self.layer_idx>2:
+        attn_output = self.headwise_attention.headwise_attention_computaion_prefill(
+                query_states,
+                key_states,
+                value_states,
+                # gamma = self.config.headwise_gamma,
+            )
+    else:
+        attn_output = self.headwise_attention.headwise_attention_computaion_flash(
+            q=query_states,
+            k=key_states,
+            v=value_states,
+            attention_mask=attention_mask,
+        )
+        '''
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
+        #[batch_size, num_heads, q_len, kv_len]
+        
+        if attention_mask is not None:  # no matter the length, we just slice it
+            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+            attn_weights = attn_weights + causal_mask
+        
+        # upcast attention to fp32
+        attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+        attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        
+        attn_output = torch.matmul(attn_weights, value_states) #value.shape = [bs, n_heads, kv_len, head_dim]
+        '''
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
     
-    attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
-    #[batch_size, num_heads, q_len, kv_len]
-    
-    if attention_mask is not None:  # no matter the length, we just slice it
-        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-        attn_weights = attn_weights + causal_mask
+    # 存储层计算时间
+    elapsed = start_event.elapsed_time(end_event)
+    self.config.timer.append({
+        'layer':self.layer_idx,
+        'time_ms':elapsed,
+        'step':(self.kv_seq_len - self.pre_len)+1
+    })
+    '''
     if self.is_prefill and self.layer_idx>2:# 此处注意第1、2层不适用压缩方法
-        # raise ValueError(f"attn_weight.shape = {attn_weights.shape}\nprefill_mask.shape = {prefill_mask.shape}")
+        # raise ValueError(f"head_wise 待修改,添加triton版本")
         # attn_weights = attn_weights * prefill_mask
         # attn_weights = attn_weights.masked_fill(~prefill_mask, float('-inf'))
         sotred_indices = torch.argsort(attn_weights,dim=-1,descending=True)
@@ -2259,12 +2377,7 @@ def llama_attn_forward_Headwise(
         prefill_mask = torch.zeros_like(attn_weights,dtype=torch.bool)
         prefill_mask.scatter_(-1,sotred_indices,mask)
         attn_weights = attn_weights.masked_fill(~prefill_mask, float('-inf'))
-    # upcast attention to fp32
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-    attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-    
-    attn_output = torch.matmul(attn_weights, value_states) #value.shape = [bs, n_heads, kv_len, head_dim]
-    
+    '''
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
